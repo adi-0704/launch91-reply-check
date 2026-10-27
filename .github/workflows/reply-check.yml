@@ -1,0 +1,45 @@
+name: Reply Check
+
+# Every 30 minutes: reads the outreach mailbox for replies, bounces and opt-outs, saves reply drafts and
+# alerts Slack. The code is fetched from the private repo at run time; this public repo holds no code.
+# The run prints NOTHING about contacts (logs of public repos are public): only success or failure.
+
+on:
+  schedule:
+    - cron: "11,41 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: reply-check
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: MadhavShankar/socialautoposterL91
+          ref: main
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q requests google-auth > /dev/null 2>&1
+      - name: Check replies (output hidden)
+        run: |
+          if python -X utf8 email_outreach.py > /dev/null 2>&1; then echo "reply check ok"; else echo "reply check FAILED (details hidden; run it from the private repo to debug)"; exit 1; fi
+        env:
+          MODE: check
+          DRY_RUN: live
+          L91_WA_KEY: ${{ secrets.L91_WA_KEY }}
+          PASS_ADITYA: ${{ secrets.PASS_ADITYA }}
+          PASS_MADHAV: ${{ secrets.PASS_MADHAV }}
+          PASS_SHIVAM: ${{ secrets.PASS_SHIVAM }}
+          SLACK_WEBHOOK_REPLIES: ${{ secrets.SLACK_WEBHOOK_REPLIES }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
